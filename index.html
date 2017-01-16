@@ -1,0 +1,123 @@
+<script src="simpletest.js"></script>
+<script>
+
+/* ==========================================================================
+   #APP
+   ========================================================================== */
+
+(function() {
+
+	var libraryStorage = {};
+
+	function librarySystem(libraryName, dependencies, callback) {
+
+		// If arguments > 1, we create and store a library
+		if (arguments.length > 1) {
+			libraryStorage[libraryName] = {
+				dependencies: dependencies,
+				callback: callback,
+				callbackHasRun: false
+			};
+
+			// Else we load a library
+		} else {
+			return loadLibrary(libraryName);
+		}
+	};
+
+
+	function loadLibrary(libraryName) {
+
+			var dependenciesArr = [];
+			var library = libraryStorage[libraryName];
+
+			// If callback has NOT run then we return our dependencies and run them
+			if (library.callbackHasRun === false) {
+				dependenciesArr = library.dependencies.map(function(dependency) {
+					return librarySystem(dependency);
+				});
+
+				// Store our loaded callback
+				library.loaded = library.callback.apply(this, dependenciesArr);
+
+				// Change callbackHasRun flag to true
+				library.callbackHasRun = true;
+			}
+
+		return library.loaded;
+	};
+	
+
+	window.librarySystem = librarySystem;
+})();
+
+
+
+
+
+/* ==========================================================================
+   #TESTS
+   ========================================================================== */
+
+tests({
+  'It should take a libraryName and callback function that stores the library and returns it': function() {
+  	librarySystem('app', [], function() {
+  		return 'loaded app';
+  	});
+
+  	eq(librarySystem('app'), 'loaded app');
+  },
+
+
+  'It should take an array of dependencies, pass into callback function and return it with the library': function() {
+
+		librarySystem('name', [], function() {
+	  	return 'Gordon';
+		});
+
+		librarySystem('company', [], function() {
+	  	return 'Watch and Code';
+		});
+
+		librarySystem('workBlurb', ['name', 'company'], function(name, company) {
+	  	return name + ' works at ' + company;
+		});	
+
+  	var returnedLibrary = librarySystem('workBlurb');
+  	eq(returnedLibrary, 'Gordon works at Watch and Code');
+  },
+
+
+  'It should take an array of dependencies out of order': function() {
+		librarySystem('workBlurb2', ['name2', 'company2'], function(name2, company2) {
+		  return name2 + ' works at ' + company2;
+		});
+
+		librarySystem('name2', [], function() {
+		  return 'Hani';
+		});
+
+		librarySystem('company2', [], function() {
+		  return 'Hoola';
+		});
+
+		var returnedLibrary = librarySystem('workBlurb2');
+		eq(returnedLibrary, 'Hani works at Hoola');
+	},
+
+
+	'It should run a callback function of a library only once, irrespective of how many times it has been called.': function() {
+		var callbackHasRun = 0;
+
+		librarySystem('app2', [], function() {
+			callbackHasRun++;
+		});
+
+		librarySystem('app2');
+		librarySystem('app2');
+
+		eq(callbackHasRun, 1);
+	}
+
+});
+</script>
